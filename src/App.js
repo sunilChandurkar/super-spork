@@ -6,105 +6,189 @@ import BookShelf from './BookShelf'
 
 class BooksApp extends React.Component {
   state = {
-    /**
-     * TODO: Instead of using this state variable to keep track of which page
-     * we're on, use the URL in the browser's address bar. This will ensure that
-     * users can use the browser's back and forward buttons to navigate between
-     * pages, as well as provide a good URL they can bookmark and share.
-     */
     showSearchPage: false,
     books: [],
     currentlyReading: [],
     wantToRead: [],
     read: [],
     searchedBooks: [],
-    bookTitles: []
+
+    bookIds: [],
+      currentlyReadingSearched: [],
+      wantToReadSearched: [],
+      readSearched: [],
+      noneSearched:[]
   }
+
+    componentDidMount() {
+        BooksAPI.getAll()
+            .then((books) => {
+                //Books on 'currentlyReading' shelf.
+                const curr = books.filter((b) => {
+                    return b.shelf==='currentlyReading'
+                })
+                //Books on 'read' shelf.
+                const read = books.filter((b) => {
+                    return b.shelf==='read'
+                })
+                //Books on 'wantToRead' shelf.
+                const want = books.filter((b) => {
+                    return b.shelf==='wantToRead'
+                })
+                //Array of Book Ids
+                let bookIds = books.map((book) => {
+                    return book.id
+                })
+
+                this.setState({
+                    books: books,
+                    currentlyReading: curr,
+                    wantToRead: want,
+                    read: read,
+                    bookIds: bookIds
+                })
+
+            })//ends then
+
+    }
 
 	processSearch = (query) => {
       query=query.trim()
       if(query){
       		//If we have a search string then...
-    
       BooksAPI.search(query, 10).then((books) =>{
       		const booksWithShelf = books.map((book) => {
-            	if(this.state.bookTitles.indexOf(book.title)){
-                	let index = this.state.bookTitles.indexOf(book.title)
-                    if(index){
-                      console.log(index)
+      		    //If a book in the search results matches
+                //a book on the main page.
+            	if(this.state.bookIds.indexOf(book.id)){
+                	let index = this.state.bookIds.indexOf(book.id)
+                    if(index >= 0){
+
                       let bookWithShelf = this.state.books[index]
-                      //let shelf = bookWithShelf.shelf
-                      //console.log(shelf)
+
+                      let shelf = bookWithShelf.shelf
+
+                      if(shelf){
+                            book.shelf = shelf
+                        }
                     }
-                    
-                    
-                  	
-                    //book.shelf = shelf
                 }
               return book
             })              
-       		this.setState({searchedBooks: booksWithShelf})
-            console.log('currSearched', books)
+
+            if(booksWithShelf.length > 0){
+                //Books on 'currentlyReading' shelf in search results.
+                const currS = booksWithShelf.filter((b) => {
+                    return b.shelf==='currentlyReading'
+                })
+
+                //Books on 'read' shelf in search results.
+                const readS = booksWithShelf.filter((b) => {
+                    return b.shelf==='read'
+                })
+
+                //Books on 'wantToRead' shelf in search results.
+                const wantS = booksWithShelf.filter((b) => {
+                    return b.shelf==='wantToRead'
+                })
+
+                //Books on 'None' shelf in search results.
+                const noneS = booksWithShelf.filter((b) => {
+
+                    return b.shelf===undefined
+                })
+                this.setState({
+                    noneSearched: noneS,
+                    wantToReadSearched: wantS,
+                    readSearched: readS,
+                    currentlyReadingSearched: currS,
+                    searchedBooks: booksWithShelf
+                })
+                query = ''
+            }
+
       })//ends .then
+      }else{
+          //If query string is empty clear everything.
+          this.setState({
+              searchedBooks: [],
+              currentlyReadingSearched: [],
+              wantToReadSearched: [],
+              readSearched: [],
+              noneSearched: []
+          })
+
       }
   }
 
-    componentDidMount() {
-    BooksAPI.getAll()
-      .then((books) => {
-		const curr = books.filter((b) => {
-        	return b.shelf==='currentlyReading'
-        })
-        let bookTitles = books.map((book) => {
-        	return book.title
-        })
-        console.log('bookTitles', bookTitles)
-        this.setState({bookTitless: bookTitles})
-        console.log('curr', curr)
-        this.setState({books: books})
-        this.setState({currentlyReading: curr})
-        
-        const read = books.filter((b) => {
-        	return b.shelf==='read'
-        })
-        console.log('read', read)
-        this.setState({read: read})
-        
-        const want = books.filter((b) => {
-        	return b.shelf==='wantToRead'
-        })
-        console.log('want', want)
-        console.log('allBooks', books)
-        this.setState({wantToRead: want})
-        //const book1 = books[0]
-        //const book2 = books[1]
-        //console.log(BooksAPI.update(book1, 'currentlyReading'))
-        //console.log(BooksAPI.update(book2, 'currentlyReading'))
-      })//ends then
 
-  }
-
-	changeShelf = (shelf, title) => {
+    //Function takes the book shelf, book id, and the page as params.
+    //It changes the shelf for the book with the given id in the db and gets all books.
+    //If the page is the main page then it updates shelves on the main page.
+    //Otherwise if the page is the search page it updates shelves on the search page.
+	changeShelf = (shelf, id, page) => {
     	
       	let books = [...this.state.books];
-      	console.log('books', books)
+        //Find the book whose shelf needs to be changed.
       	let book = books.filter((b) => { 
-          return b.title===title
+          return b.id===id
         })
         book = book[0]
       	book.shelf=shelf
-        //console.log(book)
-        const modifiedBooks = books.filter((b) => { 
-          return b.title!==title
-        })
-        const newBookArray = [...modifiedBooks, book]
-        console.log('newBooks', newBookArray)
-      	
+
       	BooksAPI.update(book, shelf)
       
       	    BooksAPI.getAll()
       		.then((books) => {
-            	this.setState({books: books})
+
+                if(page==='main'){
+                    const curr = books.filter((b) => {
+                        return b.shelf==='currentlyReading'
+                    })
+
+                    const read = books.filter((b) => {
+                        return b.shelf==='read'
+                    })
+
+                    const want = books.filter((b) => {
+                        return b.shelf==='wantToRead'
+                    })
+                    this.setState({
+                        books: books,
+                        currentlyReading: curr,
+                        wantToRead: want,
+                        read: read
+                    })
+                    console.log('State changed on Main Page')
+                }
+                if(page==='search'){
+                    const currS = this.state.searchedBooks.filter((b) => {
+                        return b.shelf==='currentlyReading'
+                    })
+
+                    const readS = this.state.searchedBooks.filter((b) => {
+                        return b.shelf==='read'
+                    })
+
+                    const wantS = this.state.searchedBooks.filter((b) => {
+                        return b.shelf==='wantToRead'
+                    })
+
+                    //Books on 'None' shelf in search results.
+                    const noneS = this.state.searchedBooks.filter((b) => {
+
+                        return b.shelf===undefined
+                    })
+
+                    this.setState({
+                        books: books,
+                        currentlyReadingSearched: currS,
+                        readSearched: readS,
+                        wantToReadSearched: wantS,
+                        noneSearched: noneS
+                    })
+                    console.log('State changed on Search Page')
+                }
             })
     }
 
@@ -127,7 +211,30 @@ class BooksApp extends React.Component {
             </div>
 			<div className="search-books-results">
               <ol className="books-grid">
-				<BookShelf shelf='Search' books={this.state.searchedBooks} onChangeShelf={(shelf, title) => {this.changeShelf(shelf, title)}} />
+                  {this.state.searchedBooks.length > 0 ? (
+                      <div>
+                      <BookShelf page='search' shelf='CurrentlyReading' books={this.state.currentlyReadingSearched}
+                                 onChangeShelf={(shelf, id, page) => {
+                                     this.changeShelf(shelf, id, page)
+                                 }}/>
+
+                      <BookShelf page='search' shelf='Want to Read' books={this.state.wantToReadSearched}
+                                 onChangeShelf={(shelf, id, page) => {
+                                     this.changeShelf(shelf, id, page)
+                                 }}/>
+
+                      <BookShelf page='search' shelf='Read' books={this.state.readSearched}
+                      onChangeShelf={(shelf, id, page) => {
+                      this.changeShelf(shelf, id, page)
+                  }}/>
+
+                      <BookShelf page='search' shelf='No Shelf' books={this.state.noneSearched}
+                      onChangeShelf={(shelf, id, page) => {
+                      this.changeShelf(shelf, id, page)
+                  }}/>
+                      </div>
+                  ) : ('')
+                  }
 			  </ol>
             </div>
         </div> 
@@ -139,11 +246,11 @@ class BooksApp extends React.Component {
         
         	<div className="list-books-content">
             <div>
-              <BookShelf shelf='CurrentlyReading' books={this.state.currentlyReading} onChangeShelf={(shelf, title) => {this.changeShelf(shelf, title)}} />
+              <BookShelf page='main' shelf='CurrentlyReading' books={this.state.currentlyReading} onChangeShelf={(shelf, id, page) => {this.changeShelf(shelf, id, page)}} />
 
-              <BookShelf shelf='Want To Read' books={this.state.wantToRead} onChangeShelf={(shelf, title) => {this.changeShelf(shelf, title)}} />
+              <BookShelf page='main' shelf='Want To Read' books={this.state.wantToRead} onChangeShelf={(shelf, id, page) => {this.changeShelf(shelf, id, page)}} />
 
-              <BookShelf shelf='read' books={this.state.read} onChangeShelf={(shelf, title) => {this.changeShelf(shelf, title)}} />
+              <BookShelf page='main' shelf='read' books={this.state.read} onChangeShelf={(shelf, id, page) => {this.changeShelf(shelf, id, page)}} />
             </div>
             <div className="open-search">
               <a onClick={() => this.setState({ showSearchPage: true })}>Add a book</a>

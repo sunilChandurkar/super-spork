@@ -4,9 +4,10 @@ class BookShelf extends Component{
   	handleChange = (e) => {
     	e.preventDefault()
       	const shelf = e.target.value;
-      	const title = e.target.getAttribute('id')
+      	const id = e.target.getAttribute('id')
+		const page = this.props.page
       	if (this.props.onChangeShelf){
-        	this.props.onChangeShelf(shelf, title)
+        	this.props.onChangeShelf(shelf, id, page)
         }
     }
 
@@ -17,12 +18,12 @@ class BookShelf extends Component{
           		<div className="bookshelf-books">
           			<ol className="books-grid">
           				{this.props.books.map((book) => (
-        			<li key={book.title}>
+        			<li key={book.id}>
                         <div className="book">
                           <div className="book-top">
                             <div className="book-cover" style={{ width: 128, height: 173, backgroundImage: `url(${book.imageLinks.smallThumbnail})`}}></div>
                             <div className="book-shelf-changer">
-                              <select id={book.title} value={book.shelf} onChange={this.handleChange}>
+                              <select id={book.id} value={book.shelf} onChange={this.handleChange}>
                                 <option value="move" disabled>Move to...</option>
 								<option value="none">None</option>	
                                 <option value="currentlyReading">Currently Reading</option>
